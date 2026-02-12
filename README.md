@@ -10,7 +10,7 @@
 
 ## Introduction
 
-**nfcore/mnaseseq** is a bioinformatics analysis pipeline used for DNA sequencing data obtained via micrococcal nuclease digestion.
+This is an unmodified version of **nfcore/mnaseseq**, a bioinformatics analysis pipeline used for DNA sequencing data obtained via micrococcal nuclease digestion. It has a modified `config` file and `awsbatch` profile for Epicrispr.
 
 The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It comes with docker containers making installation trivial and results highly reproducible.
 
@@ -48,24 +48,39 @@ The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool
 7. Create IGV session file containing bigWig tracks for data visualisation ([`IGV`](https://software.broadinstitute.org/software/igv/)).
 8. Present QC for raw read and alignment results ([`MultiQC`](http://multiqc.info/))
 
-## Quick Start
+## EC2
+This pipeline uses DSL1 and requires `nextflow` <=22.10, which cannot use AWS SSO credentials with IMDSv2. If you authenticate with AWS through SSO, you will have to allow IMDSv1 on your EC2 instance to run this pipeline. This has reduced security compared to IMDSv2.
 
-i. Install [`nextflow`](https://nf-co.re/usage/installation)
+When creating a new EC2 instance: go to **Metadata version** and select “V1 and V2 (token optional)”
 
-ii. Install either [`Docker`](https://docs.docker.com/engine/installation/) or [`Singularity`](https://www.sylabs.io/guides/3.0/user-guide/) for full pipeline reproducibility (please only use [`Conda`](https://conda.io/miniconda.html) as a last resort; see [docs](https://nf-co.re/usage/configuration#basic-configuration-profiles))
+When editing a current EC2 instance: select instance, then Actions>Instance Settings>Modify instance metadata options and select “Optional” under **IMDSv2**.
+
+## Quick start
+
+i. Install [`Docker`](https://docs.docker.com/engine/installation/) or [`Singularity`](https://www.sylabs.io/guides/3.0/user-guide/). To use `Docker` on an Ubuntu EC2 instance, after installing the [`apt` package](https://docs.docker.com/engine/install/ubuntu/), you will have to [add your user to the `docker` group](https://docs.docker.com/engine/install/linux-postinstall) in order to run the pipeline.
+
+ii. Create a conda environment with the correct version of `nextflow`.
+``` bash
+conda create --name mnase nextflow=22.10
+conda activate mnase
+```
 
 iii. Download the pipeline and test it on a minimal dataset with a single command
 
 ```bash
-nextflow run nf-core/mnaseseq -profile test,<docker/singularity/conda/institute>
+cd epic-mnaseseq
+nextflow run main.nf -profile test,docker
 ```
 
-> Please check [nf-core/configs](https://github.com/nf-core/configs#documentation) to see if a custom config file to run nf-core pipelines already exists for your Institute. If so, you can simply use `-profile <institute>` in your command. This will enable either `docker` or `singularity` and set the appropriate execution settings for your local compute environment.
-
-iv. Start running your own analysis!
+iv. Start running your own analysis. Use the `awsbatch` profile, as well as the `docker` profile to save to S3. Note that `nextflow=22.10` requires a local, non-S3, log directory.
 
 ```bash
-nextflow run nf-core/mnaseseq -profile <docker/singularity/conda/institute> --input design.csv --genome GRCh37
+nextflow run main.nf -profile awsbatch,docker \
+--genome GRCh38 \
+--input s3://[path]/input_design.csv \
+-work-dir s3://[path]/Intermediate_files/ \
+--outdir s3://[path]/Output_files/ \
+--tracedir ./log/ 
 ```
 
 See [usage docs](docs/usage.md) for all of the available options when running the pipeline.
